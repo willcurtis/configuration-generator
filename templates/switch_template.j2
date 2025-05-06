@@ -1,0 +1,54 @@
+! Cisco Switch Configuration Template for 24 Ports with VLANs, SVIs, User Accounts, and Port-Channel
+! Filename: {{ hostname }}.cfg
+
+hostname {{ hostname }}
+!
+! --- User Credentials ---
+username {{ admin_user }} privilege 15 secret {{ admin_password }}
+!
+! --- VLAN Definitions ---
+{% for vlan in vlans %}
+vlan {{ vlan.id }}
+  name {{ vlan.name }}
+!
+{% endfor %}
+
+! --- SVI Interfaces ---
+{% for svi in svis %}
+interface Vlan{{ svi.id }}
+  ip address {{ svi.ip }}/{{ svi.mask }}
+  {% if svi.shutdown %}shutdown{% else %}no shutdown{% endif %}
+!
+{% endfor %}
+
+! --- Port-Channel Configuration ---
+interface Port-channel{{ port_channel.id }}
+  description {{ port_channel.description }}
+  switchport mode trunk
+  switchport trunk allowed vlan {{ port_channel.allowed_vlans }}
+!
+{% for member in port_channel.members %}
+interface GigabitEthernet{{ member.slot }}/{{ member.number }}
+  channel-group {{ port_channel.id }} mode {{ port_channel.mode }}
+!
+{% endfor %}
+
+! --- Physical Port Configuration (Access/Trunk) ---
+{% for port in ports %}
+interface GigabitEthernet{{ port.slot }}/{{ port.number }}
+  description {{ port.description }}
+  switchport mode {{ port.mode }}
+  {% if port.mode == 'access' %}
+  switchport access vlan {{ port.vlan }}
+  {% elif port.mode == 'trunk' %}
+  switchport trunk native vlan {{ port.native_vlan }}
+  switchport trunk allowed vlan {{ port.allowed_vlans }}
+  {% endif %}
+!
+{% endfor %}
+
+! --- Global Settings ---
+spanning-tree mode rapid-pvst
+spanning-tree portfast default
+!
+end
